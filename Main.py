@@ -307,11 +307,24 @@ def astar_steps(start, goal, graph):
 
 
 def generate_maze(rows=12, cols=12):
-    # This creates a maze grid independent from the graph structure.
-    maze = [[1 for _ in range(cols)] for _ in range(rows)]
-    stack = [(0, 0)]
-    maze[0][0] = 0
+    # Fix the original bug: maze sizes must be odd so the corner start/end cells
+    # are valid open cells in a perfect maze. Even-sized mazes can leave the goal
+    # corner isolated because walls are created on even coordinates.
+    rows = max(5, rows)
+    cols = max(5, cols)
 
+    if rows % 2 == 0:
+        rows += 1
+    if cols % 2 == 0:
+        cols += 1
+
+    maze = [[1 for _ in range(cols)] for _ in range(rows)]
+    start = (0, 0)
+    maze[start[0]][start[1]] = 0
+
+    # Generate a perfect maze using randomized DFS. This guarantees all reachable
+    # cells are connected and avoids the unreachable corner problem.
+    stack = [start]
     while stack:
         r, c = stack[-1]
         neighbors = []
@@ -329,7 +342,7 @@ def generate_maze(rows=12, cols=12):
         maze[nr][nc] = 0
         stack.append((nr, nc))
 
-    maze[0][0] = 0
+    # Keep the goal at the far corner and ensure it is an open cell.
     maze[rows - 1][cols - 1] = 0
     return maze
 
@@ -527,8 +540,16 @@ class SearchVisualizer(tk.Tk):
     def generate_maze(self):
         # Maze generation is separated from the graph logic, so the graph view is
         # not used when solving a maze.
-        rows = max(4, min(32, self.maze_rows_var.get()))
-        cols = max(4, min(32, self.maze_cols_var.get()))
+        rows = max(5, min(25, self.maze_rows_var.get()))
+        cols = max(5, min(25, self.maze_cols_var.get()))
+
+        # Force odd dimensions before creation so the final corner cell is always a
+        # valid open cell in the generated maze. This prevents isolated goal cells.
+        if rows % 2 == 0:
+            rows += 1
+        if cols % 2 == 0:
+            cols += 1
+
         self.maze = generate_maze(rows, cols)
         self.maze_start = (0, 0)
         self.maze_goal = (rows - 1, cols - 1)
