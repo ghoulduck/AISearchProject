@@ -4,8 +4,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 
 # Original project logic is preserved below.
-# These are the same graph-search ideas the project was built around,
-# while adding a windowed visual interface and A* support.
+# The base BFS/DFS behavior remains intact, and the window adds live visualization + A*.
 mygraph = {
     "A": ["B", "C"],
     "B": ["A", "D", "E"],
@@ -26,14 +25,13 @@ NODE_POSITIONS = {
     "G": (560, 160),
 }
 
-
+# --- base graph logic preserved ---
 def heuristic(node, goal):
     x1, y1 = NODE_POSITIONS[node]
     x2, y2 = NODE_POSITIONS[goal]
     return abs(x1 - x2) + abs(y1 - y2)
 
 
-# Original BFS logic retained and kept intact.
 def bfs(start, goal, mygraph):
     queue = deque([[start]])
     visited = []
@@ -57,7 +55,6 @@ def bfs(start, goal, mygraph):
     return None
 
 
-# Original DFS logic retained and kept intact.
 def dfs(node, goal, mygraph, visited=None, path=None):
     if visited is None:
         visited = []
@@ -77,7 +74,6 @@ def dfs(node, goal, mygraph, visited=None, path=None):
     return None
 
 
-# A* pathfinding added without removing BFS/DFS.
 def astar(start, goal, graph):
     frontier = []
     heapq.heappush(frontier, (heuristic(start, goal), 0, start))
@@ -104,7 +100,7 @@ def astar(start, goal, graph):
     return None
 
 
-# Step-by-step visualizers for the live window.
+# --- step-by-step visualizers for GUI animation ---
 def bfs_steps(start, goal, graph):
     queue = deque([[start]])
     visited = set()
@@ -303,8 +299,8 @@ class SearchVisualizer(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("AI Search Project")
-        self.geometry("1000x720")
-        self.configure(bg="#f2f4f8")
+        self.geometry("1100x800")
+        self.configure(bg="#edf2fa")
 
         self.current_steps = []
         self.current_index = 0
@@ -314,7 +310,9 @@ class SearchVisualizer(tk.Tk):
         self.start_var = tk.StringVar(value="A")
         self.goal_var = tk.StringVar(value="G")
         self.status_var = tk.StringVar(value="Ready")
-        self.detail_var = tk.StringVar(value="Select nodes and run BFS, DFS, or A*.")
+        self.detail_var = tk.StringVar(value="Choose start and goal nodes, then run BFS, DFS, or A*.")
+        self.speed_var = tk.DoubleVar(value=0.8)
+        self.mode_var = tk.StringVar(value="graph")
 
         top = ttk.Frame(self, padding=12)
         top.pack(fill="x")
@@ -327,16 +325,37 @@ class SearchVisualizer(tk.Tk):
 
         ttk.Button(top, text="Run BFS", command=lambda: self.run_search("BFS")).grid(row=0, column=4, padx=(0, 8))
         ttk.Button(top, text="Run DFS", command=lambda: self.run_search("DFS")).grid(row=0, column=5, padx=(0, 8))
-        ttk.Button(top, text="Run A*", command=lambda: self.run_search("A* ")).grid(row=0, column=6, padx=(0, 8))
+        ttk.Button(top, text="Run A*", command=lambda: self.run_search("A*")).grid(row=0, column=6, padx=(0, 8))
         ttk.Button(top, text="Reset", command=self.reset_view).grid(row=0, column=7)
+
+        controls = ttk.Frame(self, padding=(12, 0, 12, 12))
+        controls.pack(fill="x")
+
+        ttk.Label(controls, text="Animation speed:", font=("Segoe UI", 10, "bold")).pack(side="left")
+        ttk.Scale(controls, from_=0.2, to=2.0, orient="horizontal", variable=self.speed_var, length=220).pack(side="left", padx=(8, 16))
+
+        ttk.Label(controls, text="Visual mode:", font=("Segoe UI", 10, "bold")).pack(side="left")
+        ttk.OptionMenu(controls, self.mode_var, "graph", "graph", "heatmap").pack(side="left", padx=(8, 0))
 
         info = ttk.Frame(self, padding=(12, 0, 12, 12))
         info.pack(fill="x")
         ttk.Label(info, textvariable=self.status_var, font=("Segoe UI", 11, "bold"), foreground="#1a73e8").pack(anchor="w")
-        ttk.Label(info, textvariable=self.detail_var, wraplength=950, justify="left").pack(anchor="w", pady=(4, 0))
+        ttk.Label(info, textvariable=self.detail_var, wraplength=1000, justify="left").pack(anchor="w", pady=(4, 0))
 
-        self.canvas = tk.Canvas(self, width=900, height=520, bg="#ffffff", highlightthickness=1, highlightbackground="#d0d7de")
+        self.canvas = tk.Canvas(self, width=920, height=520, bg="#ffffff", highlightthickness=1, highlightbackground="#d0d7de")
         self.canvas.pack(fill="both", padx=12, pady=(0, 12), expand=True)
+
+        bottom = ttk.Frame(self, padding=(12, 0, 12, 12))
+        bottom.pack(fill="x")
+
+        self.path_label = ttk.Label(bottom, text="Path: none", font=("Segoe UI", 10, "bold"), foreground="#0f766e")
+        self.path_label.pack(anchor="w")
+
+        self.cost_label = ttk.Label(bottom, text="Cost: 0", font=("Segoe UI", 10, "bold"), foreground="#7c3aed")
+        self.cost_label.pack(anchor="w", pady=(4, 0))
+
+        self.algorithm_label = ttk.Label(bottom, text="Algorithm: Ready", font=("Segoe UI", 10, "bold"), foreground="#334155")
+        self.algorithm_label.pack(anchor="w", pady=(4, 0))
 
         self.draw_graph()
         self.reset_view()
@@ -349,7 +368,10 @@ class SearchVisualizer(tk.Tk):
         self.current_steps = []
         self.current_index = 0
         self.status_var.set("Ready")
-        self.detail_var.set("Select nodes and run BFS, DFS, or A*.")
+        self.detail_var.set("Choose start and goal nodes, then run BFS, DFS, or A*.")
+        self.path_label.config(text="Path: none")
+        self.cost_label.config(text="Cost: 0")
+        self.algorithm_label.config(text="Algorithm: Ready")
         self.draw_graph()
 
     def draw_graph(self, current=None, visited=None, queue=None, stack=None, path=None):
@@ -399,6 +421,7 @@ class SearchVisualizer(tk.Tk):
             return
 
         self.current_mode = mode.strip()
+        self.algorithm_label.config(text=f"Algorithm: {self.current_mode}")
 
         if self.current_mode == "BFS":
             self.current_steps = bfs_steps(start, goal, mygraph)
@@ -434,6 +457,13 @@ class SearchVisualizer(tk.Tk):
         self.detail_var.set(step.get("message", "Processing path"))
         self.draw_graph(current=current, visited=visited, queue=queue, stack=stack, path=path)
 
+        if path:
+            self.path_label.config(text=f"Path: {' -> '.join(path)}")
+            self.cost_label.config(text=f"Cost: {len(path) - 1}")
+        elif step.get("type") in {"not_found"}:
+            self.path_label.config(text="Path: none")
+            self.cost_label.config(text="Cost: unreachable")
+
         if step.get("type") in {"found", "not_found"}:
             if path:
                 self.detail_var.set(f"Path: {' -> '.join(path)}")
@@ -441,7 +471,8 @@ class SearchVisualizer(tk.Tk):
                 self.detail_var.set(step.get("message", "Search complete"))
             return
 
-        self.animation_job = self.after(700, self.animate_step)
+        delay = max(100, int(1000 * (2.2 - self.speed_var.get())))
+        self.animation_job = self.after(delay, self.animate_step)
 
 
 if __name__ == "__main__":
