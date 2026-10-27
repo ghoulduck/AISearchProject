@@ -37,7 +37,7 @@ def bfs(start, goal, mygraph):
     visited = []
 
     while queue:
-        path = queue.popleft()
+        path = queue.pop(0)
         node = path[-1]
 
         if node in visited:
@@ -55,11 +55,7 @@ def bfs(start, goal, mygraph):
     return None
 
 
-def dfs(node, goal, mygraph, visited=None, path=None):
-    if visited is None:
-        visited = []
-    if path is None:
-        path = []
+def dfs(node, goal, mygraph, visited=[], path=[]):
 
     if node == goal:
         return path + [node]
