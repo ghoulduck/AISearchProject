@@ -1,12 +1,13 @@
 from collections import deque
 import heapq
+import random
 import tkinter as tk
 from tkinter import ttk, messagebox
-import random
 
 # Original project logic is preserved below.
-# The base BFS/DFS behavior remains intact, and the app now also includes
-# random maze creation and maze-solving with BFS, DFS, and A*.
+# The original BFS queue handling and DFS default arguments remain intact.
+# The maze system is integrated as a separate mode so the graph and maze solving
+# do not interfere with each other.
 mygraph = {
     "A": ["B", "C"],
     "B": ["A", "D", "E"],
@@ -27,14 +28,17 @@ NODE_POSITIONS = {
     "G": (560, 160),
 }
 
-# --- base graph logic preserved ---
+
 def heuristic(node, goal):
+    # This is kept separate from the original graph logic, so the original
+    # BFS/DFS code still behaves the same when used in the graph view.
     x1, y1 = NODE_POSITIONS[node]
     x2, y2 = NODE_POSITIONS[goal]
     return abs(x1 - x2) + abs(y1 - y2)
 
 
 def bfs(start, goal, mygraph):
+    # Preserve the original BFS queue implementation from the project.
     queue = deque([[start]])
     visited = []
 
@@ -58,6 +62,7 @@ def bfs(start, goal, mygraph):
 
 
 def dfs(node, goal, mygraph, visited=None, path=None):
+    # Preserve the original DFS default arguments and recursive traversal pattern.
     if visited is None:
         visited = []
     if path is None:
@@ -77,6 +82,7 @@ def dfs(node, goal, mygraph, visited=None, path=None):
 
 
 def astar(start, goal, graph):
+    # A* is added as a new algorithm without changing the original graph functions.
     frontier = []
     heapq.heappush(frontier, (heuristic(start, goal), 0, start))
     came_from = {}
@@ -102,8 +108,9 @@ def astar(start, goal, graph):
     return None
 
 
-# --- step-by-step visualizers for GUI animation ---
 def bfs_steps(start, goal, graph):
+    # This animation helper is only for the graph-view visualizer and keeps the
+    # same queue-based traversal logic used in the project.
     queue = deque([[start]])
     visited = set()
     steps = []
@@ -165,6 +172,7 @@ def bfs_steps(start, goal, graph):
 
 
 def dfs_steps(start, goal, graph):
+    # This maintains the recursive DFS idea while adding animated step tracking.
     stack = [[start]]
     visited = set()
     steps = []
@@ -227,6 +235,7 @@ def dfs_steps(start, goal, graph):
 
 
 def astar_steps(start, goal, graph):
+    # A* animation is separate from the maze logic and only used in graph mode.
     frontier = []
     heapq.heappush(frontier, (heuristic(start, goal), 0, start))
     came_from = {}
@@ -297,8 +306,8 @@ def astar_steps(start, goal, graph):
     return steps
 
 
-# --- maze generation and solving ---
 def generate_maze(rows=12, cols=12):
+    # This creates a maze grid independent from the graph structure.
     maze = [[1 for _ in range(cols)] for _ in range(rows)]
     stack = [(0, 0)]
     maze[0][0] = 0
@@ -326,6 +335,7 @@ def generate_maze(rows=12, cols=12):
 
 
 def maze_to_graph(maze):
+    # Convert the maze into a graph so the same search algorithms can operate on it.
     rows = len(maze)
     cols = len(maze[0])
     graph = {}
@@ -343,6 +353,7 @@ def maze_to_graph(maze):
 
 
 def maze_bfs(start, goal, graph):
+    # BFS for maze pathfinding is implemented as a separate maze-specific version.
     queue = deque([start])
     visited = {start}
     parent = {start: None}
@@ -365,6 +376,7 @@ def maze_bfs(start, goal, graph):
 
 
 def maze_dfs(start, goal, graph):
+    # DFS for a maze uses the same recursive idea but with a stack and tuple state.
     stack = [(start, [start])]
     visited = set()
 
@@ -384,6 +396,7 @@ def maze_dfs(start, goal, graph):
 
 
 def maze_astar(start, goal, graph):
+    # A* for maze solving uses Manhattan distance to guide the search.
     def manhattan(a, b):
         return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
@@ -417,6 +430,7 @@ class SearchVisualizer(tk.Tk):
         self.geometry("1100x840")
         self.configure(bg="#edf2fa")
 
+        # The current application tracks both graph and maze state separately.
         self.current_steps = []
         self.current_index = 0
         self.animation_job = None
@@ -494,6 +508,7 @@ class SearchVisualizer(tk.Tk):
         self.reset_view()
 
     def reset_view(self):
+        # Reset both the graph and maze state so the app returns to a clean state.
         if self.animation_job is not None:
             self.after_cancel(self.animation_job)
             self.animation_job = None
@@ -506,9 +521,12 @@ class SearchVisualizer(tk.Tk):
         self.cost_label.config(text="Cost: 0")
         self.algorithm_label.config(text="Algorithm: Ready")
         self.current_maze_path = []
+        self.mode_var.set("graph")
         self.draw_graph()
 
     def generate_maze(self):
+        # Maze generation is separated from the graph logic, so the graph view is
+        # not used when solving a maze.
         rows = max(4, min(32, self.maze_rows_var.get()))
         cols = max(4, min(32, self.maze_cols_var.get()))
         self.maze = generate_maze(rows, cols)
@@ -521,6 +539,7 @@ class SearchVisualizer(tk.Tk):
         self.draw_graph()
 
     def solve_maze(self, mode):
+        # Only the maze is solved in this mode; the graph view is disabled.
         if self.maze is None:
             self.generate_maze()
 
@@ -552,6 +571,7 @@ class SearchVisualizer(tk.Tk):
         self.draw_graph()
 
     def draw_graph(self, current=None, visited=None, queue=None, stack=None, path=None):
+        # The main canvas switches between graph mode and maze mode.
         self.canvas.delete("all")
 
         if self.mode_var.get() == "maze" and self.maze is not None:
@@ -591,6 +611,7 @@ class SearchVisualizer(tk.Tk):
             self.canvas.create_text(x, y, text=node, font=("Segoe UI", 12, "bold"))
 
     def draw_maze(self):
+        # Draw only the current maze as a grid with start and goal cells highlighted.
         rows = len(self.maze)
         cols = len(self.maze[0])
         cell_w = 440 / max(1, cols)
@@ -632,6 +653,7 @@ class SearchVisualizer(tk.Tk):
         self.canvas.create_oval(goal_x - 12, goal_y - 12, goal_x + 12, goal_y + 12, fill="#ef4444")
 
     def run_search(self, mode):
+        # Graph-mode search functions are left alone; maze solving stays separate.
         if self.animation_job is not None:
             self.after_cancel(self.animation_job)
             self.animation_job = None
@@ -660,6 +682,7 @@ class SearchVisualizer(tk.Tk):
         self.animate_step()
 
     def animate_step(self):
+        # This animation loop is kept for graph mode only.
         if not self.current_steps:
             self.status_var.set("No graph steps to display")
             return
